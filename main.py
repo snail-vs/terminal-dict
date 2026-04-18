@@ -2,6 +2,7 @@ import click
 from dictionary import DictionaryService
 from database import DatabaseService
 from audio import AudioService
+from syllables import SyllableService
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
@@ -10,6 +11,7 @@ console = Console()
 db = DatabaseService()
 dict_service = DictionaryService()
 audio_service = AudioService()
+syllable_service = SyllableService()
 
 @click.command()
 @click.argument('word')
@@ -29,11 +31,18 @@ def main(word, play):
             return
 
     # 渲染 UI
+    # 增加音节显示
+    syllables = syllable_service.get_syllables(word)
+    
+    table = Table(title=f"单词: {word}", show_header=False)
+    if syllables:
+        table.add_row("[bold yellow]音节[/bold yellow]", "-".join(syllables['s']))
+
     if 'individual' in data and 'trs' in data['individual']:
-        table = Table(title=f"释义: {word}", show_header=False)
         for tr in data['individual']['trs']:
             table.add_row(f"[bold cyan]{tr['pos']}[/bold cyan]", tr['tran'])
-        console.print(Panel(table, expand=False))
+            
+    console.print(Panel(table, expand=False))
     
     # 音频处理
     if play:
