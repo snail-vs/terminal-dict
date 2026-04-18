@@ -1,0 +1,4 @@
+click>=8.3.2
+edge-tts>=7.2.8
+requests>=2.33.1
+rich>=15.0.0

@@ -1,0 +1,11 @@
+README.md
+pyproject.toml
+src/database.py
+src/dictionary.py
+src/main.py
+src/dict_cli.egg-info/PKG-INFO
+src/dict_cli.egg-info/SOURCES.txt
+src/dict_cli.egg-info/dependency_links.txt
+src/dict_cli.egg-info/entry_points.txt
+src/dict_cli.egg-info/requires.txt
+src/dict_cli.egg-info/top_level.txt

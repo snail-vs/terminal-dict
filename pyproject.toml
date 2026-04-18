@@ -10,5 +10,9 @@ dependencies = [
     "requests>=2.33.1",
     "rich>=15.0.0",
 ]
+
+[tool.uv]
+package = true
+
 [project.scripts]
-dict-cli = "src.main:main"
+dict-cli = "main:main"
