@@ -1,32 +1,43 @@
 import click
-from .dictionary import DictionaryService
-from .database import DatabaseService
+from dictionary import DictionaryService
+from database import DatabaseService
+from audio import AudioService
 from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
 
 console = Console()
 db = DatabaseService()
 dict_service = DictionaryService()
+audio_service = AudioService()
 
 @click.command()
 @click.argument('word')
-def main(word):
+@click.option('--play', is_flag=True, help="播放发音")
+def main(word, play):
     """查词工具"""
-    # 1. 尝试缓存
     cached = db.get_word(word)
-    if cached:
-        console.print(f"[bold green]缓存命中[/bold green]: {word}")
-        console.print(cached['data'])
-        return
-
-    # 2. 网络查询
-    console.print(f"[blue]正在查询[/blue]: {word}...")
-    data = dict_service.lookup(word)
     
-    if data:
-        db.save_word(word, data)
-        console.print(data)
+    if cached:
+        data = cached['data']
     else:
-        console.print("[bold red]未找到释义[/bold red]")
+        data = dict_service.lookup(word)
+        if data:
+            db.save_word(word, data)
+        else:
+            console.print(f"[bold red]未找到单词: {word}[/bold red]")
+            return
+
+    # 渲染 UI
+    if 'individual' in data and 'trs' in data['individual']:
+        table = Table(title=f"释义: {word}", show_header=False)
+        for tr in data['individual']['trs']:
+            table.add_row(f"[bold cyan]{tr['pos']}[/bold cyan]", tr['tran'])
+        console.print(Panel(table, expand=False))
+    
+    # 音频处理
+    if play:
+        audio_service.play_youdao(word)
 
 if __name__ == "__main__":
     main()
