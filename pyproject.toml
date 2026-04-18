@@ -1,0 +1,12 @@
+[project]
+name = "dict-cli"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.3.2",
+    "edge-tts>=7.2.8",
+    "requests>=2.33.1",
+    "rich>=15.0.0",
+]
