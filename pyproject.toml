@@ -7,12 +7,15 @@ requires-python = ">=3.13"
 dependencies = [
     "click>=8.3.2",
     "edge-tts>=7.2.8",
+    "fastapi>=0.115.0",
     "requests>=2.33.1",
     "rich>=15.0.0",
+    "toml>=0.10.2",
+    "uvicorn>=0.34.0",
 ]
 
 [tool.uv]
 package = false
 
 [project.scripts]
-dict-cli = "main:main"
+dict-cli = "main:cli"

@@ -1,3 +1,6 @@
 .venv/
 sentence-traning/
 sy-plugin-dictionary/
+
+*/*.pyc
+*/*/__pycache__

@@ -1,13 +1,13 @@
 class SyllableService:
-    def get_syllables(self, word):
-        """
-        此处集成 AI 模型调用逻辑。
-        当前返回示例数据，需根据你的 AI 模型接口进行重构。
-        """
-        # 示例：假设 AI 返回的划分结果
-        # 实际逻辑应调用你的 AI 划分 API
-        return {
-            "s": word.split("-"), # 简单的示例逻辑
-            "p": 0,
-            "source": "algorithm"
-        }
+    def __init__(self, ai):
+        self.ai = ai
+
+    async def get_syllables_async(self, word):
+        prompt = (
+            f"Break the English word '{word}' into syllables. "
+            "Return ONLY a JSON object with this exact schema, no extra text:\n"
+            '{"syllables": "syl-la-ble", "stress": 1}\n'
+            "Where 'syllables' uses hyphens between syllables, "
+            "and 'stress' is the 1-based index of the stressed syllable."
+        )
+        return await self.ai.chat_json([{"role": "user", "content": prompt}])
