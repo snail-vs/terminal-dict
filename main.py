@@ -93,7 +93,11 @@ def commit(staged, copy):
                 console.print("[yellow]未找到剪贴板工具 (需要 xclip/xsel/pbcopy)[/yellow]")
 
 
-# ── pronounce ──
+# ── pronounce / p ──
+
+def _pronounce_cmd(word, uk, loop_count, delay):
+    accent = 2 if uk else 1
+    asyncio.run(pronounce_async(word, accent, loop_count, delay))
 
 @cli.command()
 @click.argument("word")
@@ -102,13 +106,16 @@ def commit(staged, copy):
 @click.option("--delay", "-d", default=1.0, type=float, help="循环间隔（秒）")
 def pronounce(word, uk, loop_count, delay):
     """播放单词发音（支持循环）"""
-    accent = 2 if uk else 1
-    label = "英式" if uk else "美式"
-    msg = f"{label}发音: {word}"
-    if loop_count > 1:
-        msg += f" ×{loop_count}"
-    console.print(f"[dim]{msg}[/dim]")
-    asyncio.run(audio_service.play_youdao_loop(word, accent, loop_count, delay))
+    _pronounce_cmd(word, uk, loop_count, delay)
+
+@cli.command(name="p")
+@click.argument("word")
+@click.option("--uk", is_flag=True, default=False, help="英音（默认美音）")
+@click.option("--loop", "-l", "loop_count", default=1, type=int, help="循环次数")
+@click.option("--delay", "-d", default=1.0, type=float, help="循环间隔（秒）")
+def p(word, uk, loop_count, delay):
+    """播放单词发音（快捷方式）"""
+    _pronounce_cmd(word, uk, loop_count, delay)
 
 
 # ── practice ──
@@ -161,6 +168,17 @@ def extract_phonetics(data):
     return {"us": "", "uk": ""}
 
 
+def extract_sense_distribution(data):
+    """从有道数据提取词义分布（跳过"全部 100%"汇总）"""
+    try:
+        classify = data.get("blng_sents_part", {}).get("trs-classify", [])
+        return [{"tr": item["tr"], "proportion": item["proportion"]}
+                for item in classify
+                if not (item["tr"] == "全部" and item["proportion"] == "100%")]
+    except Exception:
+        return None
+
+
 def generate_table(word, data, phonetics=None, syllables=None, enrichments=None):
     table = Table(title=f"单词: {word}", show_header=False, padding=(0, 1))
     table.add_column("类型", style="bold", no_wrap=True)
@@ -209,6 +227,11 @@ def generate_table(word, data, phonetics=None, syllables=None, enrichments=None)
                     break
             if added >= 5:
                 break
+
+    senses = extract_sense_distribution(data)
+    if senses:
+        parts = [f"[bold]{s['tr']}[/bold] {s['proportion']}" for s in senses]
+        table.add_row("📊", " · ".join(parts))
 
     if enrichments:
         if enrichments.get("sentences"):
@@ -268,6 +291,73 @@ async def async_main(word, accent):
 
     console.print(generate_table(word, data, phonetics, cached_syllables, cached_enrichments))
     db.add_to_review_queue(word)
+
+
+# ── pronounce 异步逻辑 ──
+
+async def pronounce_async(word, accent, loop_count=1, delay=1.0):
+    cached = db.get_word(word)
+    if cached:
+        data = cached["data"]
+    else:
+        data = dict_service.lookup(word)
+        if data:
+            db.save_word(word, data)
+
+    if not data:
+        console.print("[bold red]未找到单词[/bold red]")
+        return
+
+    phonetics = extract_phonetics(data)
+    syl_cached = cached.get("syllables") if cached else None
+
+    tasks = [audio_service.play_youdao_loop(word, accent, loop_count, delay)]
+    if not syl_cached:
+        tasks.append(syllable_service.get_syllables_async(word))
+
+    results = await asyncio.gather(*tasks, return_exceptions=True)
+
+    if not syl_cached and len(results) > 1:
+        syllables = results[1]
+        if isinstance(syllables, dict) and syllables:
+            db.update_syllables(word, syllables)
+            syl_cached = syllables
+
+    table = Table(title=f"🔊 {word}", show_header=False, padding=(0, 1))
+    table.add_column("", style="bold", no_wrap=True)
+    table.add_column("内容")
+
+    if syl_cached:
+        syl_str = syl_cached.get("syllables", "")
+        stress = syl_cached.get("stress", 0)
+        if syl_str:
+            parts = syl_str.split("-")
+            t = Text()
+            for i, part in enumerate(parts):
+                if i > 0:
+                    t.append("·")
+                if stress and stress == i + 1:
+                    t.append(part, style="bold yellow underline")
+                else:
+                    t.append(part)
+            table.add_row("音节", t)
+
+    if phonetics:
+        ph_parts = []
+        if phonetics.get("us"):
+            ph_parts.append(f"[bold green]美[/bold green] /{phonetics['us']}/")
+        if phonetics.get("uk") and phonetics["uk"] != phonetics.get("us"):
+            ph_parts.append(f"[bold blue]英[/bold blue] /{phonetics['uk']}/")
+        if ph_parts:
+            table.add_row("音标", "  ".join(ph_parts))
+
+    senses = extract_sense_distribution(data)
+    if senses:
+        top = senses[:2]
+        parts = [f"[bold]{s['tr']}[/bold] {s['proportion']}" for s in top]
+        table.add_row("词义", " · ".join(parts))
+
+    console.print(table)
 
 
 # ═══════════════════════════════════════════════════════════
