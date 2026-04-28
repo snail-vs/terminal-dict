@@ -12,6 +12,7 @@ from practice import run_practice
 from review import run_review
 from history import HistoryViewer
 from config import load_config
+from sync import export_data, import_data
 import server
 from rich.console import Console
 from rich.live import Live
@@ -162,6 +163,35 @@ def serve(host, port):
     """启动本地 Web 界面"""
     import uvicorn
     uvicorn.run(server.app, host=host, port=port, log_level="info")
+
+
+# ── export ──
+
+@cli.command()
+@click.option("--output", "-o", default="dict-export.json", help="导出文件路径")
+def export(output):
+    """导出查词数据为 JSON 文件"""
+    w, e, r = export_data(db, output)
+    console.print(f"[green]导出完成[/green]")
+    console.print(f"  单词: {w} 条  补充信息: {e} 条  复习队列: {r} 条")
+    console.print(f"  文件: {output}")
+
+
+# ── import ──
+
+@cli.command()
+@click.argument("input_file")
+def import_cmd(input_file):
+    """导入查词数据（智能合并）"""
+    try:
+        added, updated, enrichments, reviews = import_data(db, input_file)
+        console.print(f"[green]导入完成[/green]")
+        console.print(f"  新增单词: {added}  更新单词: {updated}")
+        console.print(f"  补充信息: {enrichments} 条  复习队列: {reviews} 条")
+    except FileNotFoundError:
+        console.print(f"[bold red]文件不存在: {input_file}[/bold red]")
+    except json.JSONDecodeError:
+        console.print(f"[bold red]文件格式错误: {input_file}[/bold red]")
 
 
 # ═══════════════════════════════════════════════════════════
