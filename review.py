@@ -37,7 +37,7 @@ def sm2_next(quality, ease, interval, review_count):
     return new_ease, new_interval, due_at
 
 
-async def run_review(limit, db):
+async def run_review(limit, db, audio_service=None, config=None):
     due = db.get_due_reviews(limit)
     if not due:
         console.print("[green]🎉 没有待复习的单词![/green]")
@@ -48,9 +48,22 @@ async def run_review(limit, db):
 
     console.print(f"[bold]间隔复习[/bold] 今日待复习: {len(due)} 个\n")
 
+    if audio_service and config:
+        pcfg = config.get("pronounce", {})
+        audio_enabled = pcfg.get("enabled", True)
+        audio_loop = pcfg.get("loop", 1)
+        audio_delay = pcfg.get("delay", 1.0)
+    else:
+        audio_enabled = False
+        audio_loop = 1
+        audio_delay = 1.0
+
     for i, item in enumerate(due, 1):
         word = item["word"]
         console.print(f"[bold]{i}/{total}[/bold]  {word}")
+
+        if audio_enabled:
+            await audio_service.play_youdao_loop(word, 1, audio_loop, audio_delay)
 
         # Get word data
         cached = db.get_word(word)

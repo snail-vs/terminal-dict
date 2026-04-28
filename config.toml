@@ -10,3 +10,8 @@ key_env = "DEEPSEEK_API_KEY"
 api_url = "https://api.anthropic.com/v1/messages"
 models = ["claude-3-5-sonnet-latest"]
 key_env = "ANTHROPIC_API_KEY"
+
+[pronounce]
+enabled = true
+loop = 1
+delay = 1.0

@@ -250,6 +250,55 @@ class DatabaseService:
             )
             conn.commit()
 
+    # ── 查词历史 ───────────────────────────────────────────
+
+    def get_lookup_history(self, limit=20, offset=0):
+        with sqlite3.connect(self.db_path) as conn:
+            rows = conn.execute(
+                """SELECT word, lookup_count, last_lookup_at, data, syllables
+                   FROM words
+                   WHERE last_lookup_at IS NOT NULL
+                   ORDER BY last_lookup_at DESC
+                   LIMIT ? OFFSET ?""",
+                (limit, offset),
+            ).fetchall()
+            results = []
+            for row in rows:
+                word, count, last_time, data_json, syl_json = row
+                data = json.loads(data_json) if data_json else {}
+                syllables = json.loads(syl_json) if syl_json else None
+                results.append({
+                    "word": word,
+                    "count": count,
+                    "last_time": last_time,
+                    "data": data,
+                    "syllables": syllables,
+                })
+            return results
+
+    def get_total_lookup_count(self):
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM words WHERE last_lookup_at IS NOT NULL"
+            ).fetchone()
+            return row[0] if row else 0
+
+    def add_words_to_review(self, word_list):
+        with sqlite3.connect(self.db_path) as conn:
+            for word in word_list:
+                conn.execute(
+                    "INSERT OR IGNORE INTO review_queue (word) VALUES (?)",
+                    (word,),
+                )
+            conn.commit()
+
+    def is_word_in_review_queue(self, word):
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT 1 FROM review_queue WHERE word = ?", (word,)
+            ).fetchone()
+            return row is not None
+
     def lookup_count(self, word):
         """每次查词时调用，累计查词次数"""
         with sqlite3.connect(self.db_path) as conn:

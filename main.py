@@ -10,6 +10,8 @@ from enrichment import EnrichmentService
 from audio import AudioService
 from practice import run_practice
 from review import run_review
+from history import HistoryViewer
+from config import load_config
 import server
 from rich.console import Console
 from rich.live import Live
@@ -23,6 +25,7 @@ dict_service = DictionaryService()
 syllable_service = SyllableService(ai)
 enrichment_service = EnrichmentService(ai, db)
 audio_service = AudioService()
+config = load_config()
 
 
 # ── DefaultGroup：未识别的子命令路由到 lookup ──
@@ -137,7 +140,17 @@ def practice(mode):
 @click.option("--limit", "-n", default=10, help="本次复习数量")
 def review(limit):
     """间隔复习查过的单词（SM-2 算法）"""
-    asyncio.run(run_review(limit, db))
+    asyncio.run(run_review(limit, db, audio_service, config))
+
+
+# ── history ──
+
+@cli.command()
+@click.option("--page-size", "-n", default=20, help="每页显示条数")
+def history(page_size):
+    """查看查词历史（交互式）"""
+    viewer = HistoryViewer(db, audio_service, syllable_service, config, page_size)
+    viewer.run()
 
 
 # ── serve ──
@@ -258,6 +271,8 @@ async def async_main(word, accent):
         console.print("[bold red]未找到单词[/bold red]")
         return
 
+    db.lookup_count(word)
+
     phonetics = extract_phonetics(data)
     cached_syllables = cached.get("syllables") if cached else None
     cached_enrichments = enrichment_service.get_cached(word) if cached else None
@@ -307,6 +322,8 @@ async def pronounce_async(word, accent, loop_count=1, delay=1.0):
     if not data:
         console.print("[bold red]未找到单词[/bold red]")
         return
+
+    db.lookup_count(word)
 
     phonetics = extract_phonetics(data)
     syl_cached = cached.get("syllables") if cached else None
