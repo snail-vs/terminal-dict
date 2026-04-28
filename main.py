@@ -311,14 +311,8 @@ async def pronounce_async(word, accent, loop_count=1, delay=1.0):
     phonetics = extract_phonetics(data)
     syl_cached = cached.get("syllables") if cached else None
 
-    tasks = [audio_service.play_youdao_loop(word, accent, loop_count, delay)]
     if not syl_cached:
-        tasks.append(syllable_service.get_syllables_async(word))
-
-    results = await asyncio.gather(*tasks, return_exceptions=True)
-
-    if not syl_cached and len(results) > 1:
-        syllables = results[1]
+        syllables = await syllable_service.get_syllables_async(word)
         if isinstance(syllables, dict) and syllables:
             db.update_syllables(word, syllables)
             syl_cached = syllables
@@ -358,6 +352,8 @@ async def pronounce_async(word, accent, loop_count=1, delay=1.0):
         table.add_row("词义", " · ".join(parts))
 
     console.print(table)
+
+    await audio_service.play_youdao_loop(word, accent, loop_count, delay)
 
 
 # ═══════════════════════════════════════════════════════════
